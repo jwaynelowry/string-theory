@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>STRING THEORY — silly string FPS</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect fill='%237ed957' width='32' height='32'/><circle cx='10' cy='14' r='6' fill='%23ff3d8a'/><circle cx='22' cy='18' r='6' fill='%2314d4ff'/></svg>" />
+    <style>
+      :root {
+        --pink: #ff3d8a;
+        --cyan: #14d4ff;
+        --sun: #ffe566;
+        --grass: #6fce45;
+        --ink: #1a1208;
+        --cream: #fff6d8;
+        --vinyl: #ff7ab6;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        width: 100%; height: 100%; overflow: hidden;
+        background: #0c2a14;
+        font-family: "Trebuchet MS", "Comic Sans MS", "Arial Black", sans-serif;
+        color: var(--ink);
+        user-select: none;
+      }
+      #game { display: block; width: 100%; height: 100%; cursor: crosshair; }
+      #hud { position: fixed; inset: 0; pointer-events: none; z-index: 4; display: none; }
+      #ui { position: fixed; inset: 0; z-index: 5; }
+      #ui.interactive { pointer-events: auto; }
+      #ui:not(.interactive) { pointer-events: none; }
+
+      .screen {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background:
+          radial-gradient(ellipse at 20% 0%, rgba(255,61,138,0.18), transparent 45%),
+          radial-gradient(ellipse at 80% 10%, rgba(20,212,255,0.16), transparent 45%),
+          linear-gradient(rgba(126,200,255,0.12) 0%, rgba(91,189,58,0.08) 100%);
+        overflow: hidden;
+      }
+      .screen[hidden] { display: none !important; }
+      .drip {
+        position: absolute; top: -20px; width: 18px; border-radius: 0 0 20px 20px;
+        animation: drip 3.4s ease-in infinite;
+      }
+      .drip:nth-child(1) { left: 12%; height: 90px; background: var(--pink); animation-delay: 0s; }
+      .drip:nth-child(2) { left: 28%; height: 60px; background: var(--cyan); animation-delay: .4s; }
+      .drip:nth-child(3) { left: 63%; height: 110px; background: var(--sun); animation-delay: .8s; }
+      .drip:nth-child(4) { left: 81%; height: 70px; background: var(--pink); animation-delay: 1.2s; }
+      @keyframes drip {
+        0% { transform: translateY(-80px) scaleY(.4); opacity: 0; }
+        20% { opacity: 1; }
+        100% { transform: translateY(40px) scaleY(1); opacity: .85; }
+      }
+
+      .badge {
+        position: relative; z-index: 1; text-align: center;
+        background: var(--cream);
+        border: 6px solid var(--ink);
+        border-radius: 28px 36px 22px 40px / 32px 24px 38px 20px;
+        padding: 16px 22px 14px;
+        box-shadow: 8px 10px 0 var(--ink), 0 0 0 8px rgba(255,229,102,.32);
+        max-width: 500px;
+        transform: rotate(-1.2deg);
+      }
+      h1 {
+        font-family: Impact, "Arial Black", sans-serif;
+        font-size: clamp(2rem, 5.5vw, 3.5rem);
+        letter-spacing: 0.04em;
+        line-height: 0.9;
+        background: linear-gradient(180deg, var(--pink) 40%, var(--cyan));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: none;
+        filter: drop-shadow(3px 3px 0 var(--ink));
+      }
+      .tag {
+        margin-top: 8px; font-size: 0.95rem; letter-spacing: 0.16em; text-transform: uppercase;
+        color: #6a4020;
+      }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+      label.field {
+        display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem;
+        letter-spacing: 0.08em; text-transform: uppercase; color: #6a4020;
+      }
+      select, input[type="range"], input[type="number"] {
+        font: inherit; border: 3px solid var(--ink); background: #fff;
+        border-radius: 10px; padding: 6px 8px; min-width: 140px;
+      }
+      .toy {
+        font-family: Impact, "Arial Black", sans-serif;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        border: 4px solid var(--ink); background: var(--sun);
+        color: var(--ink); padding: 12px 28px; font-size: 1.2rem;
+        border-radius: 18px 22px 16px 24px;
+        box-shadow: 4px 5px 0 var(--ink);
+        cursor: pointer; transform: rotate(-1deg);
+      }
+      .toy:hover { background: var(--pink); color: #fff; transform: rotate(1deg) translateY(-2px); }
+      .toy.cyan { background: var(--cyan); }
+      .toy.ghost { background: var(--cream); }
+      .hint { margin-top: 14px; font-size: 0.82rem; color: #3a5a28; max-width: 520px; line-height: 1.45; }
+
+      .hud-top {
+        position: absolute; top: 14px; left: 0; right: 0;
+        display: flex; justify-content: space-between; padding: 0 16px;
+        align-items: flex-start;
+      }
+      .chip {
+        background: var(--cream); border: 3px solid var(--ink); border-radius: 14px;
+        padding: 6px 12px; box-shadow: 3px 3px 0 var(--ink);
+        font-family: Impact, sans-serif; letter-spacing: 0.06em;
+      }
+      .chip.pink { color: var(--pink); }
+      .chip.cyan { color: #0aa; }
+      .scores { display: flex; gap: 8px; }
+      .can-meter {
+        position: absolute; right: 18px; bottom: 90px; width: 46px; height: 152px;
+        border: 4px solid var(--ink); border-radius: 20px 20px 10px 10px;
+        background: #fff6d8; overflow: visible; box-shadow: 3px 3px 0 var(--ink);
+      }
+      .can-meter::before {
+        content: ""; position: absolute; top: -16px; left: 50%; width: 18px; height: 16px;
+        margin-left: -9px; background: #1a1208; border-radius: 5px 5px 2px 2px;
+      }
+      .can-meter .fill {
+        position: absolute; bottom: 0; left: 0; right: 0; height: 80%;
+        border-radius: 0 0 6px 6px;
+        background: linear-gradient(#14d4ff, #ff3d8a);
+        overflow: hidden;
+      }
+      .health-wrap {
+        position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%);
+        width: min(420px, 70vw); pointer-events: none;
+      }
+      .health-wrap .label {
+        font-family: Impact, sans-serif; font-size: 0.85rem; letter-spacing: 0.08em;
+        text-align: center; margin-bottom: 4px;
+        background: var(--cream); border: 3px solid var(--ink); display: inline-block;
+        padding: 1px 10px; border-radius: 8px; position: relative; left: 50%; transform: translateX(-50%);
+      }
+      .health-bar {
+        height: 18px; border: 4px solid var(--ink); border-radius: 10px;
+        background: #1a1208; box-shadow: 3px 3px 0 var(--ink); overflow: hidden;
+      }
+      .health-bar .fill { height: 100%; width: 100%; background: #7dff6b; }
+      .xhair {
+        position: absolute; left: 50%; top: 50%; width: 18px; height: 18px;
+        margin: -9px 0 0 -9px; border: 3px solid #fff; border-radius: 50%;
+        box-shadow: 0 0 0 2px #1a1208, 0 0 16px rgba(255,61,138,0.55);
+      }
+      .xhair::before, .xhair::after {
+        content: ""; position: absolute; background: #ff3d8a;
+        box-shadow: 0 0 0 1px #1a1208;
+      }
+      .xhair::before { left: 50%; top: -7px; width: 3px; height: 6px; margin-left: -1.5px; }
+      .xhair::after { left: 50%; bottom: -7px; width: 3px; height: 6px; margin-left: -1.5px; }
+      .xhair.big { width: 28px; height: 28px; margin: -14px 0 0 -14px; }
+      .xhair.hit { transform: scale(1.45); box-shadow: 0 0 0 2px #1a1208, 0 0 22px #ffe566; }
+      .feed {
+        position: absolute; top: 58px; right: 16px; width: 280px; text-align: right;
+        font-size: 0.85rem; text-shadow: 1px 1px 0 #fff;
+      }
+      .feed-line { margin: 3px 0; }
+      #minimap {
+        position: absolute; left: 14px; bottom: 14px; width: 148px; height: 148px;
+        border: 4px solid var(--ink); border-radius: 16px; background: #4a9a36;
+        box-shadow: 3px 3px 0 var(--ink);
+      }
+      .vignette {
+        position: absolute; inset: 0; pointer-events: none; opacity: 0;
+        box-shadow: inset 0 0 80px 28px rgba(255, 61, 138, 0.55);
+        transition: opacity 0.15s;
+      }
+      .countdown-boom {
+        position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%);
+        font-family: Impact, sans-serif; font-size: 8rem; color: var(--sun);
+        -webkit-text-stroke: 6px var(--ink); pointer-events: none;
+      }
+      #scoreboard {
+        position: absolute; left: 50%; top: 18%; transform: translateX(-50%);
+        background: rgba(255,246,216,0.94); border: 4px solid var(--ink);
+        border-radius: 16px; padding: 12px 16px; min-width: 420px;
+        box-shadow: 6px 6px 0 var(--ink);
+      }
+      #scoreboard table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+      #scoreboard th { text-align: left; border-bottom: 2px solid var(--ink); }
+      #scoreboard td { padding: 3px 6px; }
+      #scoreboard tr.pink td:first-child { color: var(--pink); font-weight: bold; }
+      #scoreboard tr.cyan td:first-child { color: #088; font-weight: bold; }
+      .pause-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin: 16px 0; text-align: left; }
+      .click-msg {
+        position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: var(--cream); border: 3px solid var(--ink); padding: 6px 12px; border-radius: 10px;
+      }
+      .tangled-banner {
+        position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) rotate(-7deg);
+        font-family: Impact, "Arial Black", sans-serif; font-size: clamp(3rem, 10vw, 6.5rem);
+        color: var(--pink); -webkit-text-stroke: 6px var(--ink);
+        text-shadow: 8px 8px 0 var(--sun); letter-spacing: 0.04em;
+        pointer-events: none; animation: tangle-pop 0.28s cubic-bezier(.2,1.4,.4,1);
+      }
+      @keyframes tangle-pop {
+        from { transform: translate(-50%, -50%) scale(.35) rotate(-22deg); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1) rotate(-7deg); opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div class="vignette" data-tangle-vignette></div>
+      <div class="hud-top">
+        <div class="chip" data-hud="mode">Tangle Match</div>
+        <div class="scores">
+          <div class="chip pink">PINK <span data-hud="pink">0</span></div>
+          <div class="chip" data-hud="clock">3:00</div>
+          <div class="chip cyan">CYAN <span data-hud="cyan">0</span></div>
+        </div>
+        <div class="chip" data-hud="course">Field</div>
+      </div>
+      <div class="xhair" data-xhair></div>
+      <div class="feed" data-feed></div>
+      <div class="can-meter"><div class="fill" data-pressure-fill></div></div>
+      <div class="can-label"><span data-hud="kind">standard</span> · <span data-hud="cans">3</span> cans · <span data-hud="pressure">100</span> psi</div>
+      <canvas id="minimap" width="148" height="148"></canvas>
+      <div class="countdown-boom" data-countdown hidden>3</div>
+      <div class="tangled-banner" data-tangled hidden>TANGLED!</div>
+      <div id="scoreboard" data-scoreboard hidden></div>
+      <div class="health-wrap">
+        <div class="label">CLEAN <span data-hud="health">100</span>%</div>
+        <div class="health-bar"><div class="fill" data-health-fill></div></div>
+      </div>
+      <div class="click-msg">click to lock mouse · WASD move · hold fire to spray · R swap · Tab board · Esc pause · F3 nav</div>
+    </div>
+    <div id="ui" class="interactive">
+      <div class="screen" id="menu-screen">
+        <div class="drip"></div><div class="drip"></div><div class="drip"></div><div class="drip"></div>
+        <div class="badge">
+          <h1>STRING<br />THEORY</h1>
+          <p class="tag">summer-camp paintball · cans only · no take-backs</p>
+          <div class="row">
+            <label class="field">Mode
+              <select id="mode"></select>
+            </label>
+            <label class="field">Course
+              <select id="course"></select>
+            </label>
+            <label class="field">Bots
+              <input id="bots" type="number" min="0" max="16" value="12" />
+            </label>
+            <label class="field">Difficulty
+              <select id="diff">
+                <option value="easy">Cabin 1</option>
+                <option value="medium" selected>Cabin 4</option>
+                <option value="hard">Counselor</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <button class="toy" id="play-btn">Shake a can</button>
+          </div>
+          <p class="hint">Hold fire to spray a physics stream. Coat rivals until they tangle. WASD, Shift sprint, Ctrl crouch, Space jump, R swap cans.</p>
+        </div>
+      </div>
+      <div class="screen" id="pause-screen" hidden>
+        <div class="badge">
+          <h1>TIME OUT</h1>
+          <p class="tag">wipe the goggles · tweak the feel</p>
+          <div class="pause-grid">
+            <label class="field">Look speed <input id="sens" type="range" min="0.0008" max="0.006" step="0.0001" value="0.0022" /></label>
+            <label class="field">FOV <input id="fov" type="range" min="60" max="100" step="1" value="78" /></label>
+            <label class="field">Volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.7" /></label>
+            <label class="field">Quality
+              <select id="quality">
+                <option value="low">Campfire</option>
+                <option value="med" selected>Day camp</option>
+                <option value="high">Color war</option>
+              </select>
+            </label>
+            <label class="field"><input id="invert" type="checkbox" /> Invert Y</label>
+            <label class="field"><input id="shake" type="checkbox" checked /> Screen shake</label>
+            <label class="field"><input id="xhair" type="checkbox" /> Bigger crosshair</label>
+            <label class="field"><input id="colorblind" type="checkbox" /> Color-safe dots</label>
+            <label class="field">Can skin
+              <select id="skin">
+                <option value="classic">Cream classic</option>
+                <option value="zebra">Cabin zebra</option>
+                <option value="sunset">Sunset splat</option>
+                <option value="slime">Bug-juice slime</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <button class="toy cyan" id="resume-btn">Back in</button>
+            <button class="toy ghost" id="menu-btn">Main badge</button>
+          </div>
+        </div>
+      </div>
+      <div class="screen" id="end-screen" hidden>
+        <div class="badge">
+          <h1 data-end-title>Party Pink wins!</h1>
+          <p class="tag" data-end-stats></p>
+          <p class="hint" data-end-awards></p>
+          <div class="row">
+            <button class="toy" id="rematch-btn">Rematch</button>
+            <button class="toy cyan" id="next-btn">Next field</button>
+            <button class="toy ghost" id="end-menu-btn">Badge</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
