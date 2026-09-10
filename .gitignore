@@ -1,0 +1,16 @@
+logs
+*.log
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+coverage
+playwright-report
+test-results
+.env
+.env.*
+*.pem
+*.key
+.grok/
+.claude/
