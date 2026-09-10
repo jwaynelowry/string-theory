@@ -1,5 +1,4 @@
 import { DECAL_CAP } from '../constants';
-import type { TeamId } from '../types';
 
 export interface Decal {
   x: number;
@@ -8,76 +7,80 @@ export interface Decal {
   nx: number;
   ny: number;
   nz: number;
+  team: 0 | 1;
   color: number;
-  team: TeamId;
   size: number;
-  age: number;
   alive: boolean;
+  age: number;
 }
 
 export interface DecalPool {
   items: Decal[];
-  cursor: number;
   count: number;
+  cursor: number;
 }
 
-export function createDecalPool(cap = DECAL_CAP): DecalPool {
+function blank(): Decal {
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
+    nx: 0,
+    ny: 1,
+    nz: 0,
+    team: 0,
+    color: 0,
+    size: 0.25,
+    alive: false,
+    age: 0,
+  };
+}
+
+export function createDecalPool(): DecalPool {
   const items: Decal[] = [];
-  for (let i = 0; i < cap; i++) {
-    items.push({
-      x: 0,
-      y: 0,
-      z: 0,
-      nx: 0,
-      ny: 1,
-      nz: 0,
-      color: 0,
-      team: 0,
-      size: 0.35,
-      age: 0,
-      alive: false,
-    });
-  }
-  return { items, cursor: 0, count: 0 };
+  for (let i = 0; i < DECAL_CAP; i++) items.push(blank());
+  return { items, count: 0, cursor: 0 };
 }
 
 export function stampDecal(
   pool: DecalPool,
-  x: number,
-  y: number,
-  z: number,
-  nx: number,
-  ny: number,
-  nz: number,
-  color: number,
-  team: TeamId,
-  size = 0.4,
-): void {
-  const d = pool.items[pool.cursor]!;
-  const was = d.alive;
-  d.x = x;
-  d.y = y;
-  d.z = z;
-  d.nx = nx;
-  d.ny = ny;
-  d.nz = nz;
-  d.color = color;
-  d.team = team;
-  d.size = size;
-  d.age = 0;
-  d.alive = true;
-  if (!was) pool.count += 1;
-  pool.cursor = (pool.cursor + 1) % pool.items.length;
-  if (pool.count > pool.items.length) pool.count = pool.items.length;
+  d: {
+    x: number;
+    y: number;
+    z: number;
+    nx: number;
+    ny: number;
+    nz: number;
+    team: 0 | 1;
+    color: number;
+    size: number;
+  },
+): Decal {
+  const slot = pool.items[pool.cursor]!;
+  slot.x = d.x;
+  slot.y = d.y;
+  slot.z = d.z;
+  slot.nx = d.nx;
+  slot.ny = d.ny;
+  slot.nz = d.nz;
+  slot.team = d.team;
+  slot.color = d.color;
+  slot.size = d.size;
+  slot.alive = true;
+  slot.age = 0;
+  pool.cursor = (pool.cursor + 1) % DECAL_CAP;
+  if (pool.count < DECAL_CAP) pool.count += 1;
+  return slot;
 }
 
 export function teamCoverage(pool: DecalPool): { pink: number; cyan: number } {
   let pink = 0;
   let cyan = 0;
-  for (const d of pool.items) {
+  for (let i = 0; i < pool.count; i++) {
+    const d = pool.items[i]!;
     if (!d.alive) continue;
-    if (d.team === 0) pink += 1;
-    else cyan += 1;
+    if (d.team === 0) pink += d.size * d.size;
+    else cyan += d.size * d.size;
   }
   return { pink, cyan };
 }
