@@ -14,3 +14,25 @@ test-results
 *.key
 .grok/
 .claude/
+
+# cursor-cloud-backup-ignores
+.env
+.env.*
+!.env.example
+*.env
+!.env.example
+node_modules/
+.DS_Store
+*.db-shm
+*.db-wal
+.photo-keys.env
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+credentials.json
+sites.json
+service-account*.json
+.grok/
+.factory/logs/
